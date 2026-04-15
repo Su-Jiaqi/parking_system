@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>模拟停车场出入场系统</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body>
+  <div class="container">
+    <h1>模拟停车场出入场系统</h1>
+    <p class="subtitle">手机拍照/选图 → 上传服务器 → OCR识别 → 自动处理入场或出场</p>
+
+    <div class="card">
+      <div class="field-group">
+        <label>操作类型</label>
+        <div class="radio-group">
+          <label><input type="radio" name="action" value="entry" checked /> 入场</label>
+          <label><input type="radio" name="action" value="exit" /> 出场</label>
+        </div>
+      </div>
+
+      <div class="field-group">
+        <label for="fileInput">选择车牌图片</label>
+        <input id="fileInput" type="file" accept="image/*" capture="environment" />
+      </div>
+
+      <div class="preview-wrapper">
+        <img id="previewImage" class="preview hidden" alt="预览图" />
+      </div>
+
+      <button id="uploadBtn">上传并识别</button>
+      <p id="statusText" class="status"></p>
+    </div>
+
+    <div class="card result-card">
+      <h2>识别结果</h2>
+      <div id="resultBox" class="result-box empty">暂无结果</div>
+    </div>
+  </div>
+
+  <script src="{{ url_for('static', filename='main.js') }}"></script>
+</body>
+</html>

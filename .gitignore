@@ -1,0 +1,36 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+venv/
+.venv/
+env/
+
+# Runtime uploads
+uploads/*
+!uploads/.gitkeep
+
+# Database files
+database/*
+!database/.gitkeep
+
+# Logs
+*.log
+
+# Env files
+.env
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# IDE
+.vscode/
+.idea/
+
+# OS junk
+.DS_Store
+Thumbs.db
