@@ -4,11 +4,18 @@ import re
 from pathlib import Path
 from typing import List
 
-PLATE_CHARS = "京津沪渝冀豫云辽黑湘皖鲁新苏浙赣鄂桂甘晋蒙陕吉闽贵粤青藏川宁琼"
+CN_PLATE_CHARS = "京津沪渝冀豫云辽黑湘皖鲁新苏浙赣鄂桂甘晋蒙陕吉闽贵粤青藏川宁琼"
+CN_PLATE_PATTERN = re.compile(rf"([{CN_PLATE_CHARS}][A-Z][A-Z0-9]{{5,6}})")
+GENERIC_PLATE_PATTERN = re.compile(r"\b([A-Z0-9]{5,8})\b")
 
-PLATE_PATTERN = re.compile(
-    rf"([{PLATE_CHARS}][A-Z][A-Z0-9]{{5,6}})"
-)
+COMMON_NOISE_WORDS = {
+    "NEW",
+    "YORK",
+    "NEWYORK",
+    "EXCELSIOR",
+    "USA",
+    "TAXI",
+}
 
 _reader = None
 
@@ -33,7 +40,7 @@ def normalize_text(text: str) -> str:
     return (
         text.upper()
         .replace(" ", "")
-        .replace("·", "")
+        .replace("路", "")
         .replace(".", "")
         .replace("-", "")
         .replace("_", "")
@@ -43,101 +50,108 @@ def normalize_text(text: str) -> str:
 
 
 def generate_variants(text: str) -> List[str]:
-    """
-    针对车牌 OCR 常见误识别，生成几个候选变体。
-    """
     variants = set()
     text = normalize_text(text)
+    if not text:
+        return []
+
     variants.add(text)
 
-    # 特判：很多时候“鄂A”会被识别成“1A”
-    if text.startswith("1A"):
-        variants.add("鄂A" + text[2:])
-
-    # 第一位中文省份没识别出来时，也尝试补成鄂A（先只照顾你的测试图）
-    if text.startswith("A") and len(text) >= 6:
-        variants.add("鄂" + text)
-
     more = set()
-    for v in variants:
-        # 后面部分里常见混淆：O<->0, G<->6, I<->1
-        if len(v) >= 3:
-            prefix = v[:2]
-            suffix = v[2:]
+    for value in variants:
+        if len(value) < 3:
+            continue
 
-            suffix_variants = {suffix}
-            suffix_variants.add(suffix.replace("O", "0"))
-            suffix_variants.add(suffix.replace("0", "O"))
-            suffix_variants.add(suffix.replace("G", "6"))
-            suffix_variants.add(suffix.replace("6", "G"))
-            suffix_variants.add(suffix.replace("I", "1"))
-            suffix_variants.add(suffix.replace("1", "I"))
+        prefix = value[:2]
+        suffix = value[2:]
+        suffix_variants = {suffix}
+        suffix_variants.add(suffix.replace("O", "0"))
+        suffix_variants.add(suffix.replace("0", "O"))
+        suffix_variants.add(suffix.replace("G", "6"))
+        suffix_variants.add(suffix.replace("6", "G"))
+        suffix_variants.add(suffix.replace("I", "1"))
+        suffix_variants.add(suffix.replace("1", "I"))
+        suffix_variants.add(suffix.replace("B", "8"))
+        suffix_variants.add(suffix.replace("8", "B"))
 
-            # 组合替换
-            tmp = set()
-            for s in suffix_variants:
-                tmp.add(s.replace("O", "0").replace("G", "6").replace("I", "1"))
-                tmp.add(s.replace("0", "O").replace("6", "G").replace("1", "I"))
-            suffix_variants |= tmp
+        combined = set()
+        for item in suffix_variants:
+            combined.add(item.replace("O", "0").replace("G", "6").replace("I", "1").replace("B", "8"))
+            combined.add(item.replace("0", "O").replace("6", "G").replace("1", "I").replace("8", "B"))
+        suffix_variants |= combined
 
-            for s in suffix_variants:
-                more.add(prefix + s)
+        for item in suffix_variants:
+            more.add(prefix + item)
 
     variants |= more
     return list(variants)
 
 
+def looks_like_generic_plate(text: str) -> bool:
+    if text in COMMON_NOISE_WORDS:
+        return False
+    if not (5 <= len(text) <= 8):
+        return False
+    has_letter = any(char.isalpha() for char in text)
+    has_digit = any(char.isdigit() for char in text)
+    return has_letter and has_digit
+
+
+def score_plate_candidate(candidate: str) -> tuple[int, int]:
+    digits = sum(char.isdigit() for char in candidate)
+    letters = sum(char.isalpha() for char in candidate)
+
+    if candidate and candidate[0] in CN_PLATE_CHARS:
+        return (3, len(candidate))
+
+    if 6 <= len(candidate) <= 7 and letters >= 2 and digits >= 2:
+        return (2, len(candidate))
+
+    return (1, digits + letters)
+
+
 def extract_plate_candidates(texts: List[str]) -> list[str]:
     candidates: list[str] = []
+    normalized_texts = [normalize_text(text) for text in texts if text and text.strip()]
 
-    normalized_texts = [normalize_text(t) for t in texts if t and t.strip()]
-
-    all_to_try = []
-
-    # 单段
+    all_to_try: list[str] = []
     all_to_try.extend(normalized_texts)
 
-    # 整体拼接
     if normalized_texts:
         all_to_try.append("".join(normalized_texts))
 
-    # 相邻拼接
-    n = len(normalized_texts)
-    for i in range(n):
-        all_to_try.append("".join(normalized_texts[i:i+2]))
-        all_to_try.append("".join(normalized_texts[i:i+3]))
+    count = len(normalized_texts)
+    for index in range(count):
+        all_to_try.append("".join(normalized_texts[index:index + 2]))
+        all_to_try.append("".join(normalized_texts[index:index + 3]))
 
-    expanded = []
+    expanded: list[str] = []
     for item in all_to_try:
         expanded.extend(generate_variants(item))
 
-    print("OCR normalized/variant texts:", expanded)
+    seen = set()
+    unique_candidates: list[str] = []
 
     for raw in expanded:
-        matches = PLATE_PATTERN.findall(raw)
-        candidates.extend(matches)
+        for match in CN_PLATE_PATTERN.findall(raw):
+            if match not in seen:
+                unique_candidates.append(match)
+                seen.add(match)
 
-    # 去重保序
-    seen = set()
-    unique = []
-    for item in candidates:
-        if item not in seen:
-            unique.append(item)
-            seen.add(item)
-    return unique
+        for match in GENERIC_PLATE_PATTERN.findall(raw):
+            if looks_like_generic_plate(match) and match not in seen:
+                unique_candidates.append(match)
+                seen.add(match)
+
+    unique_candidates.sort(key=score_plate_candidate, reverse=True)
+    return unique_candidates
 
 
 def recognize_plate(image_path: str | Path) -> str:
     reader = _get_reader()
     results = reader.readtext(str(image_path), detail=1, paragraph=False)
-
     texts = [str(item[1]) for item in results]
-
-    print("OCR raw results:", results)
-    print("OCR texts:", texts)
-
     candidates = extract_plate_candidates(texts)
-    print("OCR plate candidates:", candidates)
 
     if not candidates:
         raise OCRError("OCR识别失败，请上传更清晰、正面的车牌图片")

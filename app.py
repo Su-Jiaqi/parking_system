@@ -7,13 +7,13 @@ from typing import Any, Dict
 from flask import Flask, jsonify, render_template, request
 from werkzeug.utils import secure_filename
 
-from db_utils import init_db
-from parking_service import ParkingService, ParkingError
+from db_utils import fetch_all, init_db
+from parking_service import ParkingError, ParkingService
 
 BASE_DIR = Path(__file__).resolve().parent
 UPLOAD_DIR = BASE_DIR / "uploads"
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "bmp", "webp"}
-MAX_CONTENT_LENGTH = 10 * 1024 * 1024  # 10 MB
+MAX_CONTENT_LENGTH = 10 * 1024 * 1024
 
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = MAX_CONTENT_LENGTH
@@ -72,6 +72,25 @@ def upload_parking_image() -> Any:
     except Exception as exc:  # pragma: no cover
         app.logger.exception("Unhandled error while processing parking request")
         return jsonify({"success": False, "message": f"服务器内部错误：{exc}"}), 500
+
+
+@app.route("/api/parking/records", methods=["GET"])
+def get_parking_records() -> Any:
+    records = fetch_all(
+        """
+        SELECT plate_number, entry_time, exit_time, duration_minutes, fee, status
+        FROM parking_records
+        ORDER BY id DESC
+        LIMIT 20
+        """
+    )
+    return jsonify(
+        {
+            "success": True,
+            "records": [dict(record) for record in records],
+            "db_path": str((BASE_DIR / "database" / "parking.db").resolve()),
+        }
+    )
 
 
 @app.errorhandler(413)

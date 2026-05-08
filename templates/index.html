@@ -9,7 +9,7 @@
 <body>
   <div class="container">
     <h1>模拟停车场出入场系统</h1>
-    <p class="subtitle">手机拍照/选图 → 上传服务器 → OCR识别 → 自动处理入场或出场</p>
+    <p class="subtitle">手机拍照或从相册选择车牌图片，上传到服务器后完成 OCR 识别和出入场处理。</p>
 
     <div class="card">
       <div class="field-group">
@@ -21,21 +21,35 @@
       </div>
 
       <div class="field-group">
-        <label for="fileInput">选择车牌图片</label>
-        <input id="fileInput" type="file" accept="image/*" capture="environment" />
+        <label>选择车牌图片</label>
+        <div class="picker-actions">
+          <button id="cameraBtn" type="button" class="secondary-btn">拍照识别</button>
+          <button id="galleryBtn" type="button" class="secondary-btn">从相册选择</button>
+        </div>
+        <input id="cameraInput" class="hidden-input" type="file" accept="image/*" capture="environment" />
+        <input id="galleryInput" class="hidden-input" type="file" accept="image/*" />
+        <p id="selectedFileText" class="helper-text">当前未选择图片</p>
       </div>
 
       <div class="preview-wrapper">
-        <img id="previewImage" class="preview hidden" alt="预览图" />
+        <img id="previewImage" class="preview hidden" alt="车牌图片预览" />
       </div>
 
-      <button id="uploadBtn">上传并识别</button>
+      <button id="uploadBtn" type="button">上传并识别</button>
       <p id="statusText" class="status"></p>
     </div>
 
     <div class="card result-card">
       <h2>识别结果</h2>
       <div id="resultBox" class="result-box empty">暂无结果</div>
+    </div>
+
+    <div class="card result-card">
+      <div class="records-header">
+        <h2>最近停车记录</h2>
+        <button id="refreshRecordsBtn" type="button" class="secondary-btn small-btn">刷新记录</button>
+      </div>
+      <div id="recordsBox" class="result-box empty">正在加载记录...</div>
     </div>
   </div>
 

@@ -51,8 +51,20 @@ label {
   font-weight: 400;
 }
 
-input[type="file"] {
-  width: 100%;
+.picker-actions {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.hidden-input {
+  display: none;
+}
+
+.helper-text {
+  margin: 0;
+  color: #6b7280;
+  font-size: 14px;
 }
 
 .preview-wrapper {
@@ -82,6 +94,19 @@ button {
   padding: 14px 16px;
   font-size: 16px;
   cursor: pointer;
+}
+
+.secondary-btn {
+  width: auto;
+  flex: 1;
+  background: #e2e8f0;
+  color: #1e293b;
+}
+
+.small-btn {
+  flex: none;
+  padding: 10px 14px;
+  font-size: 14px;
 }
 
 button:disabled {
@@ -114,4 +139,41 @@ button:disabled {
 
 .result-box.empty {
   color: #6b7280;
+}
+
+.records-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.records-header h2 {
+  margin: 0;
+}
+
+.records-list {
+  display: grid;
+  gap: 12px;
+}
+
+.record-item {
+  border: 1px solid #dbe4f0;
+  border-radius: 12px;
+  padding: 14px;
+  background: #f8fafc;
+  line-height: 1.6;
+}
+
+@media (max-width: 640px) {
+  .picker-actions,
+  .records-header {
+    flex-direction: column;
+  }
+
+  .secondary-btn,
+  .small-btn {
+    width: 100%;
+  }
 }
